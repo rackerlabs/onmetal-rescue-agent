@@ -34,7 +34,7 @@ const IRONIC_API_VERSION = "v1"
 const LOOKUP_PAYLOAD_VERSION = "2"
 
 type LookupPayload struct {
-	Version   string            `json:"payload_version"`
+	Version   string            `json:"version"`
 	Inventory HardwareInventory `json:"inventory"`
 }
 
@@ -181,7 +181,7 @@ func (c *IronicAPIClient) Heartbeat(uuid string) error {
 	}
 
 	// TODO: Some kind of retry
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusAccepted {
 		return errors.New("Unexpected response from Ironic heartbeat call: " + res.Status)
 	}
 
