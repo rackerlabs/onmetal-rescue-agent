@@ -113,7 +113,11 @@ func NewAPIClient(url string, driverName string) *IronicAPIClient {
 }
 
 type IronicNode struct {
-	UUID string `json:"uuid"`
+	UUID         string `json:"uuid"`
+	InstanceInfo struct {
+		RescuePassword string `json:"rescue_password_hash"`
+		ConfigDrive    string `json:"configdrive"`
+	} `json:"instance_info"`
 }
 
 type LookupResponse struct {
