@@ -33,6 +33,8 @@ import (
 const IRONIC_API_VERSION = "v1"
 const LOOKUP_PAYLOAD_VERSION = "2"
 
+var DEBUG = false
+
 type LookupPayload struct {
 	Version   string            `json:"version"`
 	Inventory HardwareInventory `json:"inventory"`
@@ -115,8 +117,8 @@ func NewAPIClient(url string, driverName string) *IronicAPIClient {
 type IronicNode struct {
 	UUID         string `json:"uuid"`
 	InstanceInfo struct {
-		RescuePassword string `json:"rescue_password_hash"`
-		ConfigDrive    string `json:"configdrive"`
+		RescuePasswordHash string `json:"rescue_password_hash"`
+		ConfigDrive        string `json:"configdrive"`
 	} `json:"instance_info"`
 }
 
@@ -193,9 +195,15 @@ func (c *IronicAPIClient) Heartbeat(uuid string) error {
 }
 
 func main() {
+	var apiURL = ""
+
+	flag.BoolVar(&DEBUG, "debug", false, "Debug mode")
+	flag.StringVar(&apiURL, "api-url", "", "Ironic API URL")
 	flag.Parse()
-	apiURL := flag.Arg(0)
+
+	log.Print(DEBUG)
 	if apiURL == "" {
+		flag.Parse()
 		log.Fatal("No Ironic API URL specified")
 	}
 
@@ -205,10 +213,18 @@ func main() {
 	if err != nil {
 		log.Fatal("Error building lookup payload: ", err)
 	}
+	if DEBUG {
+		log.Print(payload)
+	}
 
 	node, err := c.Lookup(payload)
 	if err != nil {
 		log.Fatal("Error in lookup call: ", err)
+	}
+	if DEBUG {
+		log.Print(node.UUID)
+		log.Print(node.InstanceInfo.ConfigDrive)
+		log.Print(node.InstanceInfo.RescuePasswordHash)
 	}
 
 	err = c.Heartbeat(node.UUID)
