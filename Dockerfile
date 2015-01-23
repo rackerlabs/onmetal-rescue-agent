@@ -15,7 +15,8 @@ RUN apt-get update && \
 # This will succeed because all the dependencies were installed previously
 RUN cd /tmp/onmetal-rescue-agent && \ 
     go build . && \
-    cp ./onmetal-rescue-agent /usr/local/bin/
+    cp ./onmetal-rescue-agent /usr/local/bin/ && \
+    cp ./lib/finalize_rescue.bash /usr/local/bin/
 
 RUN rm -rf /tmp/onmetal-rescue-agent
 RUN rm -rf /var/lib/apt/lists/*
