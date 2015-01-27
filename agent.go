@@ -27,11 +27,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 )
 
 const IRONIC_API_VERSION = "v1"
 const LOOKUP_PAYLOAD_VERSION = "2"
+
+var DEBUG = false
 
 type LookupPayload struct {
 	Version   string            `json:"version"`
@@ -115,8 +118,8 @@ func NewAPIClient(url string, driverName string) *IronicAPIClient {
 type IronicNode struct {
 	UUID         string `json:"uuid"`
 	InstanceInfo struct {
-		RescuePassword string `json:"rescue_password_hash"`
-		ConfigDrive    string `json:"configdrive"`
+		RescuePasswordHash string `json:"rescue_password_hash"`
+		ConfigDrive        string `json:"configdrive"`
 	} `json:"instance_info"`
 }
 
@@ -192,9 +195,28 @@ func (c *IronicAPIClient) Heartbeat(uuid string) error {
 	return nil
 }
 
+func FinalizeRescue(finalizeScript string, configDrive string, cdMountpoint string, rescueUsername string, rescueHash string) error {
+	var out bytes.Buffer
+	cmd := exec.Command(finalizeScript, cdMountpoint, rescueUsername, rescueHash)
+	cmd.Stdin = strings.NewReader(configDrive)
+	cmd.Stdout = &out
+	return cmd.Run()
+}
+
 func main() {
+	var apiURL string
+	var finalizeScript string
+	var cdMountpoint string
+	var rescueUsername string
+
+	flag.BoolVar(&DEBUG, "debug", false, "Debug mode")
+	flag.StringVar(&apiURL, "api-url", "", "Ironic API URL")
+	flag.StringVar(&finalizeScript, "finalize-script", "/usr/local/bin/finalize_rescue.bash", "Run this script as the final step")
+	flag.StringVar(&cdMountpoint, "configdrive-mountpoint", "/mnt/configdrive", "Mountpoint for configdrive")
+	flag.StringVar(&rescueUsername, "rescue-username", "rescue", "Rescue mode username")
 	flag.Parse()
-	apiURL := flag.Arg(0)
+
+	log.Print(DEBUG)
 	if apiURL == "" {
 		log.Fatal("No Ironic API URL specified")
 	}
@@ -205,14 +227,27 @@ func main() {
 	if err != nil {
 		log.Fatal("Error building lookup payload: ", err)
 	}
+	if DEBUG {
+		log.Print(payload)
+	}
 
 	node, err := c.Lookup(payload)
 	if err != nil {
 		log.Fatal("Error in lookup call: ", err)
 	}
+	if DEBUG {
+		log.Print(node.UUID)
+		log.Print(node.InstanceInfo.ConfigDrive)
+		log.Print(node.InstanceInfo.RescuePasswordHash)
+	}
 
 	err = c.Heartbeat(node.UUID)
 	if err != nil {
 		log.Fatal("Error in heartbeat: ", err)
+	}
+
+	err = FinalizeRescue(finalizeScript, node.InstanceInfo.ConfigDrive, cdMountpoint, rescueUsername, node.InstanceInfo.RescuePasswordHash)
+	if err != nil {
+		log.Fatal("Error with finalize: ", err)
 	}
 }
