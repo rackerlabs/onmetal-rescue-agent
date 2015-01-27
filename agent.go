@@ -203,22 +203,44 @@ func FinalizeRescue(finalizeScript string, configDrive string, cdMountpoint stri
 	return cmd.Run()
 }
 
+func ParseKernelArgs(kernelArgsFile string) map[string]string {
+	argsBytes, err := ioutil.ReadFile(kernelArgsFile)
+	if err != nil {
+		log.Fatal("Error opening kernel args file: ", err)
+	}
+	kernelArgs := make(map[string]string)
+	for _, argField := range strings.Fields(string(argsBytes)) {
+		split := strings.SplitN(argField, "=", 2)
+		kernelArgs[split[0]] = split[1]
+	}
+	if DEBUG {
+		log.Print("Parsed kernel args: ", kernelArgs)
+	}
+	return kernelArgs
+}
+
 func main() {
 	var apiURL string
 	var finalizeScript string
 	var cdMountpoint string
 	var rescueUsername string
+	var kernelArgsFile string
 
 	flag.BoolVar(&DEBUG, "debug", false, "Debug mode")
-	flag.StringVar(&apiURL, "api-url", "", "Ironic API URL")
+	flag.StringVar(&apiURL, "api-url-override", "", "Ironic API URL")
 	flag.StringVar(&finalizeScript, "finalize-script", "/usr/local/bin/finalize_rescue.bash", "Run this script as the final step")
 	flag.StringVar(&cdMountpoint, "configdrive-mountpoint", "/mnt/configdrive", "Mountpoint for configdrive")
 	flag.StringVar(&rescueUsername, "rescue-username", "rescue", "Rescue mode username")
+	flag.StringVar(&kernelArgsFile, "kernel-args-file", "/proc/cmdline", "File containing kernel command line arguments")
 	flag.Parse()
 
-	log.Print(DEBUG)
 	if apiURL == "" {
-		log.Fatal("No Ironic API URL specified")
+		kernelArgs := ParseKernelArgs(kernelArgsFile)
+		apiURL = kernelArgs["ipa-api-url"]
+	}
+
+	if apiURL == "" {
+		log.Fatal("Unable to determine Ironic API URL")
 	}
 
 	c := NewAPIClient(apiURL, "agent_ipmitool")
