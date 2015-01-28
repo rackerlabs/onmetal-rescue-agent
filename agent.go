@@ -195,11 +195,13 @@ func (c *IronicAPIClient) Heartbeat(uuid string) error {
 	return nil
 }
 
-func FinalizeRescue(finalizeScript string, configDrive string, cdMountpoint string, rescueUsername string, rescueHash string) error {
+func FinalizeRescue(finalizeScript string, configDrive string, rescueUsername string, rescueHash string) error {
 	var out bytes.Buffer
-	cmd := exec.Command(finalizeScript, cdMountpoint, rescueUsername, rescueHash)
+	cmd := exec.Command(finalizeScript, rescueUsername, rescueHash)
 	cmd.Stdin = strings.NewReader(configDrive)
 	cmd.Stdout = &out
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
@@ -222,14 +224,12 @@ func ParseKernelArgs(kernelArgsFile string) map[string]string {
 func main() {
 	var apiURL string
 	var finalizeScript string
-	var cdMountpoint string
 	var rescueUsername string
 	var kernelArgsFile string
 
 	flag.BoolVar(&DEBUG, "debug", false, "Debug mode")
 	flag.StringVar(&apiURL, "api-url-override", "", "Ironic API URL")
 	flag.StringVar(&finalizeScript, "finalize-script", "/usr/local/bin/finalize_rescue.bash", "Run this script as the final step")
-	flag.StringVar(&cdMountpoint, "configdrive-mountpoint", "/mnt/configdrive", "Mountpoint for configdrive")
 	flag.StringVar(&rescueUsername, "rescue-username", "rescue", "Rescue mode username")
 	flag.StringVar(&kernelArgsFile, "kernel-args-file", "/proc/cmdline", "File containing kernel command line arguments")
 	flag.Parse()
@@ -268,7 +268,7 @@ func main() {
 		log.Fatal("Error in heartbeat: ", err)
 	}
 
-	err = FinalizeRescue(finalizeScript, node.InstanceInfo.ConfigDrive, cdMountpoint, rescueUsername, node.InstanceInfo.RescuePasswordHash)
+	err = FinalizeRescue(finalizeScript, node.InstanceInfo.ConfigDrive, rescueUsername, node.InstanceInfo.RescuePasswordHash)
 	if err != nil {
 		log.Fatal("Error with finalize: ", err)
 	}
