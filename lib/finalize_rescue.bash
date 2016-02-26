@@ -83,9 +83,21 @@ systemctl restart systemd-networkd.service
 # not enslaved to the bond; this script automatically downs the interfaces
 # if they are not already enslaved to the bond, and re-ups them (if needed)
 for IF in eth0 eth1; do
+    I=0
+    # We need to wait until neutron has properly flipped ports, so
+    # loop until we get carrier back on the interfaces.
+    while true; do
+        I=$((I + 1))
+        if `ip link show dev $IF | head -n1 | grep -q NO-CARRIER`; then
+            echo "Link $IF does not have carrier on iteration $I, sleeping"
+            sleep 1
+        else
+            break
+        fi
+    done
     linkinfo=`ip link show dev $IF | head -n1`
-    if echo $linkinfo | grep -q ',UP,'; then
-        if echo $linkinfo | grep -q ',SLAVE,'; then
+    if echo $linkinfo | grep -q ',UP'; then
+        if echo $linkinfo | grep -q ',SLAVE'; then
             echo "Link $IF is up and enslaved, continuing"
         else
             echo "Link $IF is up and not enslaved, flapping"
