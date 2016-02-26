@@ -102,20 +102,10 @@ for IF in eth0 eth1; do
         else
             echo "Link $IF is up and not enslaved, flapping"
             ip link set dev $IF down
-            # Typically, at this point, the interface will automatically be
-            # brought up and enslaved automatically to the bond, but sometimes
-            # this doesn't happen so check manually and fix, after giving
-            # CoreOS enough time to do the right thing.
-            sleep 5
-            newlinkinfo=`ip link show dev $IF | head -n1`
-            if echo $newlinkinfo | grep -q 'SLAVE,UP'; then
-                echo "Link $IF brought up automatically and enslaved"
-            elif echo $newlinkinfo | grep -q ',UP'; then
-                echo "Link $IF brought up automatically and not enslaved, uh oh"
-            else
-                echo "Link $IF still down, bringing up manually"
-                ip link set dev $IF up
-            fi
+            # The interface will automatically be brought up and enslaved
+            # automatically to the bond, sometimes this can take a long time
+            # but the interface will not enslave properly unless it's up'd
+            # automatically
         fi
     fi
 done
