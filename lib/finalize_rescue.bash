@@ -102,10 +102,8 @@ for IF in eth0 eth1; do
         else
             echo "Link $IF is up and not enslaved, flapping"
             ip link set dev $IF down
-            # The interface will automatically be brought up and enslaved
-            # automatically to the bond, sometimes this can take a long time
-            # but the interface will not enslave properly unless it's up'd
-            # automatically
+            # Restart networking to ensure eth1 is properly bonded
+            systemctl restart systemd-networkd.service
         fi
     fi
 done
